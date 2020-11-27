@@ -127,8 +127,8 @@ const out_fs = `#version 300 es
 `;
 
 // SETUP SHADER PROGRAM --------------------------------
-const program = createShader(vs, fs);
-const output = createShader(out_vs, out_fs);
+const program = createProgram(vs, fs);
+const output = createProgram(out_vs, out_fs);
 // -----------------------------------------------------
 
 // POSITION BUFFER -------------------------------------

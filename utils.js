@@ -1,4 +1,4 @@
-function createShader(vs, fs){
+function createProgram(vs, fs){
   const v_shader = gl.createShader(gl.VERTEX_SHADER);
   gl.shaderSource(v_shader, vs);
   gl.compileShader(v_shader);
