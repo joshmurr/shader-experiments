@@ -71,7 +71,7 @@ const big_kernel = new Uint8Array([
 const chosen_kernel = small_kernel;
 const kernel_size = Math.sqrt(chosen_kernel.length);
 
-const video_tex = createTexture(512, 512);
+const video_tex = createTexture(gl.canvas.width, gl.canvas.height);
 const kernel_tex = createSingleChannelTexture(kernel_size, kernel_size, chosen_kernel);
 // -----------------------------------------------------
 
