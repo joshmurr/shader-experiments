@@ -1,4 +1,4 @@
-function createProgram(vs, fs){
+function createProgram(vs, fs, transform_feedback_varyings=null){
   const v_shader = gl.createShader(gl.VERTEX_SHADER);
   gl.shaderSource(v_shader, vs);
   gl.compileShader(v_shader);
@@ -9,8 +9,16 @@ function createProgram(vs, fs){
   const program = gl.createProgram();
   gl.attachShader(program, v_shader);
   gl.attachShader(program, f_shader);
-  gl.linkProgram(program);
 
+	if(transform_feedback_varyings){
+		gl.transformFeedbackVaryings(
+			program,
+			transform_feedback_varyings,
+			gl.INTERLEAVED_ATTRIBS
+		);
+	}
+
+  gl.linkProgram(program);
   return program;
 }
 
@@ -105,6 +113,47 @@ function createVAO(program, attrs){
 	}
 
 	return vao;
+}
+
+function createBuffer(data){
+  const buffer = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+  gl.bufferData(
+    gl.ARRAY_BUFFER,
+		data,
+    gl.STREAM_DRAW
+  );
+
+  return buffer;
+}
+
+function createVAOfromBuffer(program, buffer_opts){
+	const vao = gl.createVertexArray();
+	gl.bindVertexArray(vao);
+
+  gl.bindBuffer(gl.ARRAY_BUFFER, buffer_opts.buffer);
+
+  let offset = 0;
+  const attribs = buffer_opts.attributes;
+  for(const attr in attribs){
+		const location = gl.getAttribLocation(program, attr);
+		gl.enableVertexAttribArray(location);
+    gl.vertexAttribPointer(
+			location,
+      attribs[attr].num_components,
+      gl.FLOAT,
+      false,
+      buffer_opts.stride,
+      offset
+    );
+    const type_size = 4;
+
+    offset += attribs[attr].num_components * type_size;
+  }
+  gl.bindVertexArray(null);
+  gl.bindBuffer(gl.ARRAY_BUFFER, null);
+
+  return vao;
 }
 
 function createFramebuffer(tex){
