@@ -10,7 +10,12 @@ const update_vs = `#version 300 es
 
   void main(){
     v_position = a_position + a_velocity;
-    v_velocity = a_velocity - 0.000001;
+		vec2 multiplier = vec2(1.0);
+		if(v_position.x > 1.0) multiplier.x *= -1.0;
+		if(v_position.y > 1.0) multiplier.y *= -1.0;
+		if(v_position.x < -1.0) multiplier.x *= -1.0;
+		if(v_position.y < -1.0) multiplier.y *= -1.0;
+    v_velocity = a_velocity * multiplier;
   }
 `;
 const update_fs = `#version 300 es
@@ -25,9 +30,8 @@ const render_vs = `#version 300 es
   in vec2 a_position;
 
   void main(){
-    gl_PointSize = 10.0;
+    gl_PointSize = 3.0;
 		gl_Position = vec4(a_position, 0.0, 1.0);
-		//gl_Position = vec4(vec2(0.5), 0.0, 1.0);
   }
 `;
 const render_fs = `#version 300 es
@@ -45,16 +49,9 @@ function initialParticleData(num_parts) {
     // position
     data.push(Math.random() - 0.5);
     data.push(Math.random() - 0.5);
-
-    //var life = min_age + Math.random() * (max_age - min_age);
-    // set age to max. life + 1 to ensure the particle gets initialized
-    // on first invocation of particle update shader
-    //data.push(life + 1);
-    //data.push(life);
-
     // velocity
-    data.push((Math.random() - 0.5) * 0.001);
-    data.push((Math.random() - 0.5) * 0.001);
+    data.push((Math.random() - 0.5) * 0.01);
+    data.push((Math.random() - 0.5) * 0.01);
   }
   return new Float32Array(data);
 }
@@ -64,7 +61,8 @@ function initialParticleData(num_parts) {
 const update = createProgram(update_vs, update_fs, ['v_position', 'v_velocity']);
 const render = createProgram(render_vs, render_fs);
 
-const data = initialParticleData(100);
+const NUM_PARTICLES = 1000;
+const data = initialParticleData(NUM_PARTICLES);
 
 const buffers = [
 	createBuffer(data),
@@ -132,7 +130,7 @@ function step() {
 
   /* Begin transform feedback! */
   gl.beginTransformFeedback(gl.POINTS);
-  gl.drawArrays(gl.POINTS, 0, 100);
+  gl.drawArrays(gl.POINTS, 0, NUM_PARTICLES);
   gl.endTransformFeedback();
   gl.disable(gl.RASTERIZER_DISCARD);
   /* Don't forget to unbind the transform feedback buffer! */
@@ -143,7 +141,7 @@ function step() {
      that we've written the updated data to. */
 	gl.bindVertexArray(state[++count%2].render);
   gl.useProgram(render);
-  gl.drawArrays(gl.POINTS, 0, 100);
+  gl.drawArrays(gl.POINTS, 0, NUM_PARTICLES);
 	count++;
 
 	window.requestAnimationFrame(step);
