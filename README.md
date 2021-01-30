@@ -1,3 +1,1 @@
-Mostly simple WebGL implementations of cool things I've found on [Shadertoy](https://www.shadertoy.com/). Making sure to credit the right people.
-
-Trying to keep things simple and clean for reference for others, or future me.
+Mostly simple WebGL implementations of cool things I've found on [Shadertoy](https://www.shadertoy.com/) or minimal demos of useful render loops for reference. Making sure to credit the right people.
