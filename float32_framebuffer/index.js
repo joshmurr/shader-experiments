@@ -84,34 +84,6 @@ const u_texture_loc = gl.getUniformLocation(render, 'u_texture');
 const framebuffer = createFramebuffer(texture);
 // -----------------------------------------------------
 
-function glEnumToString(gl, value) {
-  for (let key in gl) {
-    if (gl[key] === value) {
-      return key;
-    }
-  }
-  return `0x${value.toString(16)}`;
-}
-
-function log(...args) {
-  const elem = document.createElement("p");
-  elem.textContent = [...args].join(' ');
-  document.body.appendChild(elem);
-}
-
-function readPixelsFromBuffer(gl, attachment) {
-  gl.readBuffer(attachment);
-  const data = new Float32Array(4 * tw * th);
-  const x = 0;
-  const y = 0;
-  const width = tw;
-  const height = th;
-  const format = gl.RGBA;
-  const type = gl.FLOAT;
-  gl.readPixels(x, y, width, height, format, type, data);
-  log(glEnumToString(gl, attachment), data);
-}
-
 function step() {
   gl.useProgram(update);
   gl.bindVertexArray(vao_update);
@@ -125,17 +97,17 @@ function step() {
   );
   gl.viewport(0, 0, tw, th);
   gl.drawArrays(gl.TRIANGLES, 0, 6);
-  readPixelsFromBuffer(gl, gl.COLOR_ATTACHMENT0);
+  readPixelsFromBuffer(0, 0, tw, th, gl.COLOR_ATTACHMENT0);
 
   gl.useProgram(render);
   gl.bindVertexArray(vao_render);
   gl.bindFramebuffer(gl.FRAMEBUFFER, null);
   gl.activeTexture(gl.TEXTURE0 + 0);
-  gl.uniform1f(u_texture_loc, texture);
+  gl.uniform1i(u_texture_loc, texture);
   gl.bindTexture(gl.TEXTURE_2D, texture);
   gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
   gl.drawArrays(gl.TRIANGLES, 0, 6);
-  readPixelsFromBuffer(gl, gl.COLOR_ATTACHMENT0);
+  //readPixelsFromBuffer(0, 0, tw, th, gl.COLOR_ATTACHMENT0);
   //requestAnimationFrame(step);
 }
 

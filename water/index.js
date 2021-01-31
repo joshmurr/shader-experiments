@@ -87,7 +87,7 @@ const out_fs = `#version 300 es
 
   const float threshold=0.05;
 
-  #define TEXTURE 1
+  #define TEXTURE 0
 
   void main(){
 

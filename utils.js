@@ -169,6 +169,32 @@ function createFramebuffer(tex){
 	return f;
 }
 
+
+function glEnumToString(gl, value) {
+  for (let key in gl) {
+    if (gl[key] === value) {
+      return key;
+    }
+  }
+  return `0x${value.toString(16)}`;
+}
+
+
+function log(...args) {
+  const elem = document.createElement("pre");
+  elem.textContent = [...args].join(' ');
+  document.body.appendChild(elem);
+}
+
+function readPixelsFromBuffer(x, y, w, h, attachment) {
+  gl.readBuffer(attachment);
+  const data = new Float32Array(4 * w * h);
+  gl.readPixels(x, y, w, h, gl.RGBA, gl.FLOAT, data);
+  log(glEnumToString(gl, attachment), data);
+
+	return data
+}
+
 function initVideo() {
   if (navigator.mediaDevices.getUserMedia) {
     navigator.mediaDevices
@@ -202,6 +228,20 @@ function createData(w, h){
 			d[idx+1] = i^j;
 			d[idx+2] = i|j;
 			d[idx+3] = 255;
+		}
+	}
+	return d;
+}
+
+function randomData(w, h){
+	let d = [];
+	for(let i=0; i<w; i++){
+		for(let j=0; j<h; j++){
+			let idx = (i + j * w) * 4;
+			d[idx  ] = Math.random() * 255 - 128
+			d[idx+1] = Math.random() * 255 - 128
+			d[idx+2] = Math.random() * 255 - 128
+			d[idx+3] = Math.random() * 255 - 128
 		}
 	}
 	return d;
