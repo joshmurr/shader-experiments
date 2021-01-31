@@ -1,3 +1,5 @@
+![Img](./float32_fbo.png)
+
 Finding out once-and-for-all if you can render negative numbers to a framebuffer texture. Turns out you can with this extension:
 
 ```javascript
