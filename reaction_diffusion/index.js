@@ -5,10 +5,10 @@ let MOUSE = {
   y: 0,
   click: 0
 };
-gl.canvas.width = screen.x;
-gl.canvas.height = screen.y;
-const SCALE = 2;
-const RES = { x: Math.floor(screen.x/SCALE), y: Math.floor(screen.y/SCALE) };
+gl.canvas.width = 512
+gl.canvas.height = 512
+const SCALE = 1;
+const RES = { x: Math.floor(512/SCALE), y: Math.floor(512/SCALE) };
 
 
 const vs = `#version 300 es
@@ -34,8 +34,8 @@ const fs = `#version 300 es
 
   const float Da = 1.0;
   const float Db = 0.5;
-  const float f  = 0.055;
-  const float k  = 0.062;
+  const float F  = 0.0545;
+  const float K  = 0.062;
   const mat3  laplace = mat3(0.05, 0.2, 0.05, 0.2, -1.0, 0.2, 0.05, 0.2, 0.05);
 
   vec2 laplacian(vec2 p){
@@ -45,36 +45,27 @@ const fs = `#version 300 es
         sum += texture(u_texture, p+vec2(x,y)/u_resolution).rg * laplace[x+1][y+1];
       }
     }
-    return sum*sum;
+    return sum;
   }
 
   void main(){
-    vec2 p = texture(u_texture, v_texcoord).rg;
     vec2 o = vec2(0.0);
+
+		vec2 val = texture(u_texture, v_texcoord).xy;
     vec2 l = laplacian(v_texcoord);
-    float rgg = p.r*p.g*p.g;
-    o.r = p.r + (Da*l.r - rgg + f*(1.0-p.r)) * u_frame * 0.0005;
-    o.g = p.g + (Db*l.g + rgg - (k+f)*p.g)   * u_frame * 0.0005;
+    float rgg = val.r*val.g*val.g;
+    o.r = val.r + (Da*l.r - rgg + F*(1.0-val.r));
+    o.g = val.g + (Db*l.g + rgg - (K+F)*val.g);
     
     if(u_mouse.z > 0.5){
       float diff = length(u_mouse.xy - gl_FragCoord.xy);
       if(diff < 50.0) o.g = (1.0 - smoothstep(1.0, 50.0, diff)) * 0.3;
     }
-    
-    outcolor = vec4(o, 0.0, 1.0);
+
+    outcolor = vec4(o, 0.0, 0.0);
   }
 `;
 
-const out_vs = `#version 300 es
-  in vec4 a_position;
-  in vec2 a_texcoord;
-  out vec2 v_texcoord;
-
-  void main(){
-    gl_Position = a_position;
-    v_texcoord = a_texcoord;
-  }
-`;
 const out_fs = `#version 300 es
   precision highp float;
   precision highp sampler2D;
@@ -85,13 +76,17 @@ const out_fs = `#version 300 es
   out vec4 outcolor;
 
   void main(){
-    outcolor = texture(u_diffusion, v_texcoord);
+    //outcolor = texture(u_diffusion, v_texcoord);
+    vec2 col = texture(u_diffusion, v_texcoord).rg;
+    float COLOR_MIN = 0.2, COLOR_MAX = 0.4;
+    float v = (COLOR_MAX - col.y) / (COLOR_MAX - COLOR_MIN);
+    outcolor = vec4(v, v, v, 1);
   }
 `;
 
 // SETUP SHADER PROGRAM --------------------------------
 const program = createProgram(vs, fs);
-const output = createProgram(out_vs, out_fs);
+const output = createProgram(vs, out_fs);
 // -----------------------------------------------------
 
 // POSITION BUFFER -------------------------------------
@@ -104,25 +99,74 @@ const out_vao = createVAO(output, attributes);
 // -----------------------------------------------------
 
 // TEXTURE ---------------------------------------------
-const seed = new Uint8Array(RES.x * RES.y * 4);
+const sq = 20;
+const seed = new Float32Array(RES.x * RES.y * 4);
 for(let x=0; x<RES.x; x++){
   for(let y=0; y<RES.y; y++){
     let i = (x + y * RES.x) * 4;
-    seed[i  ] = 255;
-    seed[i+1] = Math.random() < 0.01 ? 255 : 0;
-    seed[i+2] = 0;
-    seed[i+3] = 0;
+		let central_square = (x > (RES.x/2)-sq && x < (RES.x/2) + sq && y > RES.y/2-sq && y < RES.y/2+sq);
+		if (central_square) {
+			seed[i + 0] = 0.5 + Math.random() * 0.02 - 0.01
+			seed[i + 1] = 0.25 + Math.random() * 0.02 - 0.01
+			seed[i + 2] = 0
+			seed[i + 3] = 0
+		} else {
+			seed[i + 0] = 1
+			seed[i + 1] = 0
+			seed[i + 2] = 0
+			seed[i + 3] = 0
+		}
   }
 }
-
-const tex_A = createTexture(RES.x, RES.y, seed);
-const tex_B = createTexture(RES.x, RES.y);
+const ext = gl.getExtension("EXT_color_buffer_float");
+if (!ext) {
+	alert("need EXT_color_buffer_float");
+}
+const tex_A = gl.createTexture();
+gl.bindTexture(gl.TEXTURE_2D, tex_A);
+gl.texImage2D(
+  gl.TEXTURE_2D,
+  0,
+  gl.RGBA32F,
+  RES.x, RES.y,
+  0,
+  gl.RGBA,
+  gl.FLOAT,
+  seed
+);
+gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
+gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
+const tex_B = gl.createTexture();
+gl.bindTexture(gl.TEXTURE_2D, tex_B);
+gl.texImage2D(
+  gl.TEXTURE_2D,
+  0,
+  gl.RGBA32F,
+  RES.x, RES.y,
+  0,
+  gl.RGBA,
+  gl.FLOAT,
+	null,
+);
+gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
+gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
 const textures = [tex_A, tex_B];
 // -----------------------------------------------------
 
 // FRAMEBUFFER -----------------------------------------
 const framebuffer = createFramebuffer(tex_B);
 // -----------------------------------------------------
+
+gl.useProgram(program);
+gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
+var fb_status = gl.checkFramebufferStatus(gl.FRAMEBUFFER);
+if (fb_status != gl.FRAMEBUFFER_COMPLETE) {
+  console.log("Cannot render to framebuffer: " + fb_status);
+}
 
 // UNIFORMS --------------------------------------------
 const u_texture = gl.getUniformLocation(program, 'u_texture');
@@ -138,25 +182,26 @@ let frame = 0;
 function step() {
   let a = frame%2;
   let b = (frame+1)%2;
-
   gl.useProgram(program);
   gl.bindVertexArray(vao);
-  gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
-  gl.framebufferTexture2D(
-    gl.FRAMEBUFFER,
-    gl.COLOR_ATTACHMENT0,
-    gl.TEXTURE_2D,
-    textures[b],
-    0
-  );
-  gl.viewport(0, 0, RES.x, RES.y);
-
   gl.uniform1i(u_texture, 0);
   gl.bindTexture(gl.TEXTURE_2D, textures[a]);
   gl.uniform1f(u_frame, frame++);
   gl.uniform2f(u_resolution, RES.x, RES.y);
   gl.uniform3f(u_mouse, MOUSE.x, MOUSE.y, MOUSE.click);
-  gl.drawArrays(gl.TRIANGLES, 0, 6);
+  gl.viewport(0, 0, RES.x, RES.y);
+
+  for(let i=0; i<81; i++){
+    gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
+    gl.framebufferTexture2D(
+      gl.FRAMEBUFFER,
+      gl.COLOR_ATTACHMENT0,
+      gl.TEXTURE_2D,
+      textures[b],
+      0
+    );
+    gl.drawArrays(gl.TRIANGLES, 0, 6);
+  }
 
   gl.useProgram(output);
   gl.bindVertexArray(out_vao);
