@@ -7,7 +7,7 @@ let MOUSE = {
 };
 gl.canvas.width = screen.x;
 gl.canvas.height = screen.y;
-const SCALE = 8;
+const SCALE = 4;
 const RES = { x: Math.floor(screen.x/SCALE), y: Math.floor(screen.y/SCALE) };
 
 const update_vs = `#version 300 es
@@ -76,7 +76,7 @@ const render_fs = `#version 300 es
 
 		if (u_mouse.z > 0.0) { // zoom
 			st -= u_resolution*0.5;
-			st = (st/10.0) + (u_mouse.xy * 8.0 * 2.0);
+			st = (st/10.0) + (u_mouse.xy * ${SCALE}.0);
 		}
 
     vec2 uv = st / u_resolution;
