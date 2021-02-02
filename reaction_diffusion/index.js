@@ -7,7 +7,7 @@ let MOUSE = {
 };
 gl.canvas.width = 512
 gl.canvas.height = 512
-const SCALE = 1;
+const SCALE = 2;
 const RES = { x: Math.floor(512/SCALE), y: Math.floor(512/SCALE) };
 
 
@@ -32,9 +32,9 @@ const fs = `#version 300 es
   uniform vec3 u_mouse;
   out vec4 outcolor;
 
-  const float Da = 1.0;
-  const float Db = 0.5;
-  const float F  = 0.0545;
+  const float Da = 0.2097;
+  const float Db = 0.105;
+  const float F  = 0.037;
   const float K  = 0.062;
   const mat3  laplace = mat3(0.05, 0.2, 0.05, 0.2, -1.0, 0.2, 0.05, 0.2, 0.05);
 
@@ -80,7 +80,7 @@ const out_fs = `#version 300 es
     vec2 col = texture(u_diffusion, v_texcoord).rg;
     float COLOR_MIN = 0.2, COLOR_MAX = 0.4;
     float v = (COLOR_MAX - col.y) / (COLOR_MAX - COLOR_MIN);
-    outcolor = vec4(v, v, v, 1);
+    outcolor = vec4(vec3(v), 1);
   }
 `;
 
@@ -100,73 +100,35 @@ const out_vao = createVAO(output, attributes);
 
 // TEXTURE ---------------------------------------------
 const sq = 20;
-const seed = new Float32Array(RES.x * RES.y * 4);
+const seed = new Uint8Array(RES.x * RES.y * 4);
 for(let x=0; x<RES.x; x++){
   for(let y=0; y<RES.y; y++){
     let i = (x + y * RES.x) * 4;
 		let central_square = (x > (RES.x/2)-sq && x < (RES.x/2) + sq && y > RES.y/2-sq && y < RES.y/2+sq);
 		if (central_square) {
-			seed[i + 0] = 0.5 + Math.random() * 0.02 - 0.01
-			seed[i + 1] = 0.25 + Math.random() * 0.02 - 0.01
+			seed[i + 0] = Math.random() * 127 + 127
+			seed[i + 1] = Math.random() * 64  + 64
 			seed[i + 2] = 0
 			seed[i + 3] = 0
 		} else {
-			seed[i + 0] = 1
+			seed[i + 0] = 255
 			seed[i + 1] = 0
 			seed[i + 2] = 0
 			seed[i + 3] = 0
 		}
   }
 }
-const ext = gl.getExtension("EXT_color_buffer_float");
-if (!ext) {
-	alert("need EXT_color_buffer_float");
-}
-const tex_A = gl.createTexture();
-gl.bindTexture(gl.TEXTURE_2D, tex_A);
-gl.texImage2D(
-  gl.TEXTURE_2D,
-  0,
-  gl.RGBA32F,
-  RES.x, RES.y,
-  0,
-  gl.RGBA,
-  gl.FLOAT,
-  seed
-);
-gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
-gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
-const tex_B = gl.createTexture();
-gl.bindTexture(gl.TEXTURE_2D, tex_B);
-gl.texImage2D(
-  gl.TEXTURE_2D,
-  0,
-  gl.RGBA32F,
-  RES.x, RES.y,
-  0,
-  gl.RGBA,
-  gl.FLOAT,
-	null,
-);
-gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
-gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
+const tex_A = createTexture(RES.x,RES.y, seed);
+const tex_B = createTexture(RES.x,RES.y);
 const textures = [tex_A, tex_B];
 // -----------------------------------------------------
 
 // FRAMEBUFFER -----------------------------------------
-const framebuffer = createFramebuffer(tex_B);
+const framebufferA = createFramebuffer(tex_A);
+const framebufferB = createFramebuffer(tex_B);
+const FBOs = [framebufferA, framebufferB];
 // -----------------------------------------------------
 
-gl.useProgram(program);
-gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
-var fb_status = gl.checkFramebufferStatus(gl.FRAMEBUFFER);
-if (fb_status != gl.FRAMEBUFFER_COMPLETE) {
-  console.log("Cannot render to framebuffer: " + fb_status);
-}
 
 // UNIFORMS --------------------------------------------
 const u_texture = gl.getUniformLocation(program, 'u_texture');
@@ -185,21 +147,14 @@ function step() {
   gl.useProgram(program);
   gl.bindVertexArray(vao);
   gl.uniform1i(u_texture, 0);
-  gl.bindTexture(gl.TEXTURE_2D, textures[a]);
   gl.uniform1f(u_frame, frame++);
   gl.uniform2f(u_resolution, RES.x, RES.y);
   gl.uniform3f(u_mouse, MOUSE.x, MOUSE.y, MOUSE.click);
   gl.viewport(0, 0, RES.x, RES.y);
 
-  for(let i=0; i<81; i++){
-    gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
-    gl.framebufferTexture2D(
-      gl.FRAMEBUFFER,
-      gl.COLOR_ATTACHMENT0,
-      gl.TEXTURE_2D,
-      textures[b],
-      0
-    );
+  for(let i=0; i<8; i++){
+    gl.bindFramebuffer(gl.FRAMEBUFFER, FBOs[b]);
+    gl.bindTexture(gl.TEXTURE_2D, textures[a]);
     gl.drawArrays(gl.TRIANGLES, 0, 6);
   }
 
