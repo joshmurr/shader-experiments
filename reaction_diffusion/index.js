@@ -7,7 +7,7 @@ let MOUSE = {
 };
 gl.canvas.width = 512
 gl.canvas.height = 512
-const SCALE = 2;
+const SCALE = 1;
 const RES = { x: Math.floor(512/SCALE), y: Math.floor(512/SCALE) };
 
 
@@ -32,9 +32,9 @@ const fs = `#version 300 es
   uniform vec3 u_mouse;
   out vec4 outcolor;
 
-  const float Da = 0.2097;
-  const float Db = 0.105;
-  const float F  = 0.037;
+  const float Da = 0.999;
+  const float Db = 0.46;
+  const float F  = 0.059;
   const float K  = 0.062;
   const mat3  laplace = mat3(0.05, 0.2, 0.05, 0.2, -1.0, 0.2, 0.05, 0.2, 0.05);
 
@@ -99,15 +99,15 @@ const out_vao = createVAO(output, attributes);
 // -----------------------------------------------------
 
 // TEXTURE ---------------------------------------------
-const sq = 20;
+const sq = 10;
 const seed = new Uint8Array(RES.x * RES.y * 4);
 for(let x=0; x<RES.x; x++){
   for(let y=0; y<RES.y; y++){
     let i = (x + y * RES.x) * 4;
 		let central_square = (x > (RES.x/2)-sq && x < (RES.x/2) + sq && y > RES.y/2-sq && y < RES.y/2+sq);
 		if (central_square) {
-			seed[i + 0] = Math.random() * 127 + 127
-			seed[i + 1] = Math.random() * 64  + 64
+			seed[i + 0] = 128 * Math.random() * 6 - 3
+			seed[i + 1] = 64 * Math.random() * 6 - 3
 			seed[i + 2] = 0
 			seed[i + 3] = 0
 		} else {
@@ -119,7 +119,7 @@ for(let x=0; x<RES.x; x++){
   }
 }
 const tex_A = createTexture(RES.x,RES.y, seed);
-const tex_B = createTexture(RES.x,RES.y);
+const tex_B = createTexture(RES.x,RES.y, seed);
 const textures = [tex_A, tex_B];
 // -----------------------------------------------------
 
@@ -141,21 +141,22 @@ const u_diffusion = gl.getUniformLocation(output, 'u_diffusion');
 // -----------------------------------------------------
 
 let frame = 0;
+let a, b;
 function step() {
-  let a = frame%2;
-  let b = (frame+1)%2;
   gl.useProgram(program);
   gl.bindVertexArray(vao);
   gl.uniform1i(u_texture, 0);
-  gl.uniform1f(u_frame, frame++);
   gl.uniform2f(u_resolution, RES.x, RES.y);
   gl.uniform3f(u_mouse, MOUSE.x, MOUSE.y, MOUSE.click);
   gl.viewport(0, 0, RES.x, RES.y);
 
-  for(let i=0; i<8; i++){
-    gl.bindFramebuffer(gl.FRAMEBUFFER, FBOs[b]);
-    gl.bindTexture(gl.TEXTURE_2D, textures[a]);
+  for(let i=0; i<40; i++){
+    a = frame%2;
+    b = (frame+1)%2;
+    gl.bindFramebuffer(gl.FRAMEBUFFER, FBOs[a]);
+    gl.bindTexture(gl.TEXTURE_2D, textures[b]);
     gl.drawArrays(gl.TRIANGLES, 0, 6);
+    frame++;
   }
 
   gl.useProgram(output);
@@ -164,7 +165,7 @@ function step() {
   gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
   gl.uniform2f(u_resolutionOut, screen.x, screen.y);
   gl.uniform1i(u_diffusion, 0);
-  gl.bindTexture(gl.TEXTURE_2D, textures[b]);
+  gl.bindTexture(gl.TEXTURE_2D, textures[a]);
   gl.drawArrays(gl.TRIANGLES, 0, 6);
 
   requestAnimationFrame(step);
