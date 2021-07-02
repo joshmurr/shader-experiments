@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <style>
+      canvas {
+        display: block;
+        margin-bottom: 10px;
+      }
+      button {
+        display: inline-block;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas width=512 height=512></canvas>
+    <video autoplay id="video" style="display:none"></video>
+    <button type="button" onclick="initVideo()">Init Video</button>
+    <button type="button" onclick="stopVideo()">Stop Video</button>
+    <button type="button" onclick="step()">Step</button>
+    <script src="../utils.js"></script>
+    <script src="index.js"></script>
+  </body>
+</html>
