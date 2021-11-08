@@ -36,15 +36,20 @@ const fs = `#version 300 es
 
 
   void main(){
-    vec2 st = gl_FragCoord.xy / u_resolution;
+    vec2 st = v_texcoord;
     vec2 uv = st;
     
     uv *= 0.998;
     
     vec4 sum = texture(u_textureSum, uv);
     vec4 src = texture(u_textureSrc, st);
-    
+
     sum.rgb = mix(sum.rbg, src.rgb, 0.07);
+
+    if(u_mouse.z > 0.5){
+      float diff = length(u_mouse.xy - gl_FragCoord.xy);
+      if(diff < 50.0) sum.rg = vec2((1.0 - smoothstep(1.0, 50.0, diff)) * 0.8);
+    }
 
     outcolor = sum;
   }
@@ -60,7 +65,7 @@ const out_fs = `#version 300 es
   out vec4 outcolor;
 
   void main(){
-    outcolor = texture(u_diffusion, v_texcoord * vec2(1.0, -1.0));
+    outcolor = texture(u_diffusion, v_texcoord);
   }
 `;
 
@@ -79,18 +84,20 @@ const out_vao = createVAO(output, attributes);
 // -----------------------------------------------------
 
 // TEXTURE ---------------------------------------------
+let seed = new Uint8Array(RES.x * RES.y * 4)
 for(let x=0; x<RES.x; x++){
   for(let y=0; y<RES.y; y++){
     let i = (x + y * RES.x) * 4;
-      seed[i + 0] = 255
-      seed[i + 1] = 255
-      seed[i + 2] = 255
-      seed[i + 3] = 255
+    seed[i + 0] = 255
+    seed[i + 1] = 255
+    seed[i + 2] = 0
+    seed[i + 3] = 255
   }
 }
+
 const tex_src = createTexture(RES.x,RES.y, seed); 
 const tex_A = createTexture(RES.x,RES.y, seed);
-const tex_B = createTexture(RES.x,RES.y);
+const tex_B = createTexture(RES.x,RES.y, seed);
 const textures = [tex_A, tex_B];
 // -----------------------------------------------------
 
@@ -134,7 +141,7 @@ function step() {
   gl.uniform2f(u_resolution, RES.x, RES.y);
   gl.uniform3f(u_mouse, MOUSE.x, MOUSE.y, MOUSE.click);
   gl.uniform1f(u_frame, frame);
-  gl.bindFramebuffer(gl.FRAMEBUFFER, FBOs[0]);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, FBOs[a]);
   gl.framebufferTexture2D(
     gl.FRAMEBUFFER,
     gl.COLOR_ATTACHMENT0,
@@ -144,7 +151,6 @@ function step() {
   );
   gl.viewport(0, 0, RES.x, RES.y);
 
-  //gl.bindFramebuffer(gl.FRAMEBUFFER, FBOs[a]);
   gl.bindTexture(gl.TEXTURE_2D, textures[a]);
   gl.drawArrays(gl.TRIANGLES, 0, 6);
 
@@ -164,7 +170,7 @@ function step() {
   frame++;
   setTimeout(step, 50);
 }
-step();
+//step();
 
 document.getElementsByTagName('canvas')[0].addEventListener('mousemove', function(e) {
   const rect = this.getBoundingClientRect();

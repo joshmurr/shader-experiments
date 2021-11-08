@@ -179,6 +179,13 @@ function glEnumToString(gl, value) {
   return `0x${value.toString(16)}`;
 }
 
+function getErrors(gl) {
+	const errors = gl.getError()
+	if(errors > 0) {
+		console.log(glEnumToString(gl, errors))
+	}
+}
+
 
 function log(...args) {
   const elem = document.createElement("pre");
