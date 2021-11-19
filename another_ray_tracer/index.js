@@ -16,6 +16,7 @@ const dd_fs = `#version 300 es
 	#define MAX_ITERS 100
 	#define MAX_DIST  10.
 	#define EPS .01
+	#define PI 3.1415926538
 
   precision mediump float;
   uniform vec2 u_resolution;
@@ -37,14 +38,26 @@ const dd_fs = `#version 300 es
 	  return length(p) - s;
 	}
 
-	float displacement(vec3 p, float s) {
-		return sin(s*p.x)*sin(s*p.y)*sin(s*p.z);
+	float displacement(vec3 p, vec3 d, float t) {
+		return sin(d.x*p.x+t)*sin(d.y*p.y+t)*sin(d.y*p.z+t);
+	}
+
+	float d2(vec3 p) {
+		float t = u_time * 1.5;
+		//p /= 200.;
+		p.x -= t;
+		p.y += sin(p.x * 2. + t) * 0.12;
+		vec3 c = vec3(p.x, p.y, p.x);
+		c = smoothstep(c+.5, c, vec3(.71));
+		c = clamp(c, vec3(0), vec3(1.));
+
+		return dot(c, vec3(0.3));
+
 	}
 
 	float donut(vec3 p, vec2 t) {
 		vec2 q = vec2(length(p.xz) - t.x, p.y);
-		float d = displacement(p, 2.8);
-		return length(q)-t.y + d;
+		return length(q)-t.y;
 	}
 
 	float smin(float d1, float d2, float k){
@@ -59,22 +72,16 @@ const dd_fs = `#version 300 es
 	float scene(vec3 p) {
 		float res = 1e10;
 
-		//p = rot3d(p, vec3(0,1,0), u_time);
 		p = rot3d(p, vec3(1,0,0), u_time);
-		//p = rot3d(p, vec3(0,0,1), u_time);
+		p = rot3d(p, vec3(0,1,0), u_time);
 
 		float k = 32.0;
 
-		//res = smin(res, sphere(p - vec3(1, 1, 0), 0.5), k);
-		//res = smin(res, sphere(p + vec3(1, 1, 0), 0.5), k);
-		//res = smin(res, sphere(p - vec3(0, 1, 1), 0.5), k);
-		//res = smin(res, sphere(p + vec3(0, 1, 1), 0.5), k);
-		res = smin(res, donut(p, vec2( 1.2, 0.9)), k);
+		//float disp = displacement(p, vec3(6.8), u_time) * 0.2;
+		float disp = d2(p);
 
-		//res = res + displacement(p);
+		res = smin(res, sphere(p, 1.0), k) + disp;
 
-		//return donut(p, vec2( 1.2, 0.9));
-		//return sphere(p);
 		return res;
 	}
 
