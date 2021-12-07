@@ -47,7 +47,7 @@ const dd_fs = `#version 300 es
 		//p /= 200.;
 		p.x -= t;
 		p.y += sin(p.x * 2. + t) * 0.12;
-		vec3 c = vec3(p.x, p.y, p.x);
+		vec3 c = 0.8 * vec3(sin(p.x + cos(u_time * 2.0) * .8), sin(p.y + u_time * 0.2), sin(p.z * cos(u_time * 3.0) * 0.8));
 		c = smoothstep(c+.5, c, vec3(.71));
 		c = clamp(c, vec3(0), vec3(1.));
 
@@ -80,7 +80,7 @@ const dd_fs = `#version 300 es
 		//float disp = displacement(p, vec3(6.8), u_time) * 0.2;
 		float disp = d2(p);
 
-		res = smin(res, sphere(p, 1.0), k) + disp;
+		res = smin(res, sphere(p, 2.0), k) + disp;
 
 		return res;
 	}

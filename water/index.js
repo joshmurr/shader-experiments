@@ -7,7 +7,7 @@ let MOUSE = {
 };
 gl.canvas.width = screen.x;
 gl.canvas.height = screen.y;
-const SCALE = 2;
+const SCALE = 8;
 const RES = { x: Math.floor(screen.x/SCALE), y: Math.floor(screen.y/SCALE) };
 
 
@@ -82,7 +82,8 @@ const out_fs = `#version 300 es
   in vec2 v_texcoord;
   uniform sampler2D u_heightMap;
   uniform sampler2D u_background;
-  uniform vec2 u_resolution;
+  uniform vec2 u_resolutionIn;
+  uniform vec2 u_resolutionOut;
   out vec4 outcolor;
 
   const float threshold=0.05;
@@ -93,14 +94,14 @@ const out_fs = `#version 300 es
 
   #if TEXTURE == 0
 
-    vec2 offset = 1.0/u_resolution;
+    vec2 offset = 1.0/u_resolutionIn;
     float a = texture(u_heightMap, v_texcoord-offset.yx).x;
     float b = texture(u_heightMap, v_texcoord-offset.xy).x;
     float c = texture(u_heightMap, v_texcoord+offset.xy).x;
     float d = texture(u_heightMap, v_texcoord+offset.yx).x;
     
     vec3 grad = normalize(vec3(c - b, d - a, 1.0));
-    vec4 tmp_col = texture(u_background, gl_FragCoord.xy/u_resolution + grad.xy*0.35);
+    vec4 tmp_col = texture(u_background, gl_FragCoord.xy/u_resolutionOut + grad.xy*0.35);
     vec3 light = normalize(vec3(0.2, -0.5, 0.7));
     float diffuse = dot(grad, light);
     float spec = pow(max(0.0, -reflect(light, grad).z), 32.0);
@@ -162,7 +163,8 @@ const u_resolution = gl.getUniformLocation(program, 'u_resolution');
 const u_mouse = gl.getUniformLocation(program, 'u_mouse');
 const u_frame = gl.getUniformLocation(program, 'u_frame');
 
-const u_resolutionOut = gl.getUniformLocation(output, 'u_resolution');
+const u_resolutionIn = gl.getUniformLocation(output, 'u_resolutionIn');
+const u_resolutionOut = gl.getUniformLocation(output, 'u_resolutionOut');
 const u_heightMap = gl.getUniformLocation(output, 'u_heightMap');
 const u_background = gl.getUniformLocation(output, 'u_background');
 // -----------------------------------------------------
@@ -203,6 +205,7 @@ function step() {
   gl.bindVertexArray(out_vao);
   gl.bindFramebuffer(gl.FRAMEBUFFER, null);
   gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
+  gl.uniform2f(u_resolutionIn, RES.x, RES.y);
   gl.uniform2f(u_resolutionOut, screen.x, screen.y);
   gl.uniform1i(u_heightMap, 0);
   gl.uniform1i(u_background, 1);
