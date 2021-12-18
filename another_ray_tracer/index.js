@@ -1,5 +1,6 @@
 // https://www.iquilezles.org/www/articles/distfunctions/distfunctions.htm
 // https://www.shadertoy.com/view/wtBBWh
+// https://www.shadertoy.com/view/MtV3Dy
 
 const gl = document.getElementsByTagName('canvas')[0].getContext('webgl2');
 
@@ -17,8 +18,11 @@ const dd_fs = `#version 300 es
 	#define MAX_DIST  10.
 	#define EPS .01
 	#define PI 3.1415926538
+	#define TWO_PI 6.283185
+	#define PHI 1.6180339887
+	#define INV_PHI 0.6180339887
 
-  precision mediump float;
+  precision highp float;
   uniform vec2 u_resolution;
   uniform float u_time;
   out vec4 outcolor;
@@ -55,9 +59,18 @@ const dd_fs = `#version 300 es
 
 	}
 
+	float intersectObjects(float d1, float d2) {
+		if(d1 > d2) return d1;
+		return d2;
+	}
+
 	float donut(vec3 p, vec2 t) {
 		vec2 q = vec2(length(p.xz) - t.x, p.y);
 		return length(q)-t.y;
+	}
+
+	float cube(vec3 p, float d) {
+		return length(max(abs(p) - d, 0.0));
 	}
 
 	float smin(float d1, float d2, float k){
@@ -69,18 +82,103 @@ const dd_fs = `#version 300 es
 		return min(d1, d2);
 	}
 
+	float plane(vec3 p, vec3 origin, vec3 normal) {
+		return dot(p - origin, normal);
+	}
+
+	float xzPlane(vec3 p, float y) {
+		return p.y - y;
+	}
+
+	float xyPlane(vec3 p, float z) {
+		return p.z - z;
+	}
+
+	float doublePlane(vec3 p, vec3 origin, vec3 normal) {
+		return max(dot(p - origin, normal), dot(-p - origin, normal));
+	}
+
+	float tetrahedron(vec3 p, float d) {
+		float dn = 1.0 / sqrt(3.0);
+
+		float sd1 = plane(p, vec3( d, d, d), vec3(-dn,  dn,  dn));
+		float sd2 = plane(p, vec3( d,-d,-d), vec3( dn, -dn,  dn));
+		float sd3 = plane(p, vec3(-d, d,-d), vec3( dn,  dn, -dn));
+		float sd4 = plane(p, vec3(-d,-d, d), vec3(-dn, -dn, -dn));
+
+		return max(max(sd1, sd2), max(sd3, sd4));
+	}
+
+	float octahedron(vec3 p, float d) {
+		float t1 = tetrahedron( p, d);
+		float t2 = tetrahedron(-p, d);
+
+		return intersectObjects(t1, t2);
+	}
+
+	float dodecahedron(vec3 p, float d) {
+		vec3 v = normalize(vec3(0.0, 1.0, PHI));
+		vec3 w = normalize(vec3(0.0, 1.0,-PHI));
+
+		float ds = doublePlane(p, d*v    , v);
+		ds =   max(doublePlane(p, d*w    , w), ds);
+		ds =   max(doublePlane(p, d*v.zxy, v.zxy),ds);
+		ds =   max(doublePlane(p, d*v.yzx, v.yzx),ds);
+
+
+		ds =   max(doublePlane(p, d*w.zxy, w.zxy),ds);
+		ds =   max(doublePlane(p, d*w.yzx, w.yzx),ds);
+		
+		return ds;
+	}
+
+	float icosahedron(vec3 p, float d) {
+		float h = 1.0/sqrt(3.0);
+
+		vec3 v1 = h* vec3(1.0,1.0,1.0);
+    vec3 v2 = h* vec3(-1.0,1.0,1.0);
+    vec3 v3 = h* vec3(-1.0,1.0,-1.0);
+    vec3 v4 = h* vec3(1.0,1.0,-1.0);
+   
+    vec3 v5 = h* vec3(0.0,INV_PHI,PHI);
+    vec3 v6 = h* vec3(0.0,INV_PHI,-PHI);
+    
+    float ds = doublePlane(p,d*v1,v1);
+    //max == intesect objects
+		ds = max(doublePlane(p,d*v2,v2),ds);
+    ds = max(doublePlane(p,d*v3,v3),ds); 
+    ds = max(doublePlane(p,d*v4,v4),ds);
+    ds = max(doublePlane(p,d*v5,v5),ds); 
+    ds = max(doublePlane(p,d*v6,v6),ds);
+    
+    //plus cyclic permutaions of v5 and v6:
+    ds = max(doublePlane(p,d*v5.zxy,v5.zxy),ds); 
+    ds = max(doublePlane(p,d*v5.yzx,v5.yzx),ds);
+    ds = max(doublePlane(p,d*v6.zxy,v6.zxy),ds);
+    ds = max(doublePlane(p,d*v6.yzx,v6.yzx),ds);
+
+		return ds;
+	}
+
 	float scene(vec3 p) {
 		float res = 1e10;
 
-		p = rot3d(p, vec3(1,0,0), u_time);
-		p = rot3d(p, vec3(0,1,0), u_time);
+		//p = rot3d(p, vec3(1,0,0), u_time);
+		//p = rot3d(p, vec3(0,1,0), u_time);
 
 		float k = 32.0;
 
 		//float disp = displacement(p, vec3(6.8), u_time) * 0.2;
 		float disp = d2(p);
 
-		res = smin(res, sphere(p, 2.0), k) + disp;
+		//res = smin(res, sphere(p, 1.5), k);// + disp;
+		//res = smin(res, cube(p, 1.0), k);// + disp;
+		//res = smin(res, octahedron(p, 1.0), k);// + disp;
+		//res = smin(res, dodecahedron(p, 1.0), k);// + disp;
+		res = smin(res, icosahedron(p, 1.0), k);// + disp;
+
+		res = smin(res, xzPlane(p, -1.75), k);
+		//res = smin(res, xyPlane(p, -1.75), k);
 
 		return res;
 	}
